@@ -1,0 +1,253 @@
+---
+title: 'Azure: Static Web Apps'
+author: "Andrew Fogarty"
+date: "06/26/2021"
+output:
+  html_document:
+    toc: yes
+    df_print: paged
+  rmarkdown::html_vignette:
+    toc: yes
+    number_sections: yes
+editor_options:
+  chunk_output_type: console
+---
+
+```{r, message = FALSE, warning = FALSE}
+# load python
+library(reticulate)
+use_python('C:/Users/Andrew/Anaconda3/')
+use_condaenv(condaenv='my_ml', required=TRUE)
+library(knitr)
+```
+
+
+
+# Introduction
+
+Azure Static Web Apps is a serverless hosting service that offers streamlined full-stack development from source code to global high availability. In this guide, we will build a static web app, secure it to a limited audience, and setup GitHub actions that build our posts automatically for us.
+
+
+# Pelican
+
+To begin, we will use [Pelican](https://blog.getpelican.com/), a static site generator that requires no database or server-side logic.
+
+
+To use Pelican, we will do the following:
+
+
+## Create a Pelican Environment
+
+
+```{python, eval=FALSE}
+# create env
+conda create -n pelican python=3.6
+
+# activate
+conda activate pelican
+
+# install pelican
+python -m pip install "pelican[markdown]"
+```
+
+
+## Build a New Website
+
+```{python, eval=FALSE}
+# build a new website
+pelican-quickstart
+
+# Where do you want to create your new web site? [.] 
+.
+# What will be the title of this web site?
+Azure Static Web Apps
+
+# Who will be the author of this web site?
+Andrew Fogarty
+
+# What will be the default language of this web site? [English]
+En
+# Do you want to specify a URL prefix? e.g., https://example.com   (Y/n) 
+n
+# Do you want to enable article pagination? (Y/n)
+y
+# How many articles per page do you want? [10]
+5
+# What is your time zone? [Europe/Paris]
+America/New_York
+# Do you want to generate a tasks.py/Makefile to automate generation and publishing? (Y/n)
+Y
+# Do you want to upload your website using FTP? (y/N)
+n
+# Do you want to upload your website using SSH? (y/N)
+N
+# Do you want to upload your website using Dropbox? (y/N)
+N
+# Do you want to upload your website using S3? (y/N)
+N
+# Do you want to upload your website using Rackspace Cloud Files? (y/N)
+N
+# Do you want to upload your website using GitHub Pages? (y/N)
+N
+# download cleanblog theme:
+https://github.com/gilsondev/pelican-clean-blog/archive/refs/heads/master.zip
+# install cleanblog
+pelican-themes --install <path-to-cleanblog-here> --verbose
+```
+
+## Generate a Blog Post
+
+```{python, eval=FALSE}
+# generate a markdown file in website_folder/content
+%%writefile /content/post1.md
+Title: My super title
+Date: 2010-12-03 10:20
+Modified: 2010-12-05 19:30
+Category: Python
+Tags: pelican, publishing
+Slug: my-super-post
+Authors: Andrew Fogarty
+Summary: Short version for index and feeds
+
+This is the content of my super blog post.
+```
+
+## Set the Theme
+
+```{python, eval=FALSE}
+# add to pelicanconf.py
+THEME='PATH/TO/THEME'
+THEME_STATIC_DIR = 'theme'
+```
+
+
+## View the Blog Post
+
+```{python, eval=FALSE}
+# run pelican and test live edits
+pelican --autoreload --listen
+```
+
+# Azure Static Web App Security
+
+To prevent your website from being accessed by unauthorized individuals, a `staticwebapp.config.json` file is required. Inside our Pelcian website, we need to place `staticwebapp.config.json` inside the `output` folder. 
+The JSON below will rely on Azure Active Directory and check whether or not the user is allowed to be there were allowed users are assigned a `specialRoles` role within Azure.
+
+```{python, eval=FALSE}
+{
+    "routes": [
+        {
+            "route": "/login",
+            "redirect": "/.auth/login/aad"
+        },
+        {
+            "route": "/logout",
+            "redirect": "/.auth/logout"
+        },
+        {
+            "route": "/*",
+            "allowedRoles": ["specialRoles"]
+        }
+    ],
+    "responseOverrides": {
+        "401": {
+          "statusCode": 302,
+          "redirect": "/login"
+        }
+    }
+}
+
+```
+
+
+# Generate Azure Static Web App
+
+When building the Azure Static Web App, ensure that you select:
+
+* Plan type: Standard (needed if we want to protect access)
+* Source: GitHub (and sign into GitHub)
+* Build Presets: Custom
+* App location: /
+* Api location: blank
+* Output location: /output/
+
+# Push the Website to GitHub
+
+Now we can follow the usual GitHub procedures and commit our new website to our repository. Azure Static Web App will generate a GitHub action yaml file that will automatically push our website to the Azure service.
+
+# Establish Security
+
+Once the website is deployed, proceed to `Role Management` within the `Static Web App` and invite the select users to your website. Ensure that they are given the role `specialRoles`.
+
+
+# Automate GitHub Building
+
+As we update our markdown files, we can automate the building of the HTML files by a clever use of GitHub action scripts that might look like:
+
+
+```{bash, eval=FALSE}
+name: Run Script
+
+on:
+  push:
+  pull_request:
+  schedule:  # run this every day
+    - cron: '0 7 * * *'  # 0700 UTC daily; roughly 0300 EDT
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.6' # Version range or exact version of a Python version to use, using SemVer's version range syntax
+          architecture: 'x64' # optional x64 or x86. Defaults to x64 if not specified
+
+      - name: Run a pull
+        run: |
+          git pull
+
+      - name: Install python dependencies
+        run: |
+          # install pip
+          python -m pip install --upgrade pip
+          # install requirements.txt
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          
+      - name: Install pelican
+        run: |
+          # download pelican theme
+          curl -LO https://github.com/gilsondev/pelican-clean-blog/archive/refs/heads/master.zip
+          # install unzip
+          sudo apt-get install unzip
+          # unzip theme -- choose All after to overwrite
+          unzip master.zip<<<A
+          # install theme
+          pelican-themes --install pelican-clean-blog-master --verbose
+          
+      - name: Build pelican website
+        run: |
+          # generate new html
+          pelican content -s pelicanconf.py
+          
+      - name: Commit files to git
+        run: |
+          git config user.email email
+          git config user.name user
+          git add .
+          git commit -m 'update markdown pipeline'
+          git push -u origin main
+          
+  build_and_deploy_job:
+    # paste Azure Static Web App generated yaml file here
+```
+
+
+
+
+
+
+
+
+
