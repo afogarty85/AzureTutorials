@@ -207,7 +207,11 @@ jobs:
       - name: Run a pull
         run: |
           git pull
-
+          
+      - name: Ensure a commit
+        run: |
+          touch >> ghost.txt
+          
       - name: Install python dependencies
         run: |
           # install pip
@@ -226,6 +230,16 @@ jobs:
           # install theme
           pelican-themes --install pelican-clean-blog-master --verbose
           
+      - name: Alter Markdown
+        run: |
+          # update the date every day
+          # get the date to replace
+          str3=$(sed -n 2p content/post1.md)  # copy the second line
+          # get the current date to inject
+          str4=$(date "+%B %_d, %Y")
+          # search and replace date
+          sed -i -e "s|$str3|Date: $str4|g" content/post1.md
+          
       - name: Build pelican website
         run: |
           # generate new html
@@ -233,8 +247,8 @@ jobs:
           
       - name: Commit files to git
         run: |
-          git config user.email email
-          git config user.name user
+          git config user.email user.email.here
+          git config user.name user.name.here
           git add .
           git commit -m 'update markdown pipeline'
           git push -u origin main
