@@ -210,7 +210,7 @@ jobs:
           
       - name: Ensure a commit
         run: |
-          touch >> ghost.txt
+          touch " " >> ghost.txt
           
       - name: Install python dependencies
         run: |
