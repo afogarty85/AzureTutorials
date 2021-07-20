@@ -521,3 +521,26 @@ Next, in Azure Synapse, we want to select the `Manage` tab on the left and selec
 We now have version control working in Synapse. Next, we will hit `Publish` at the top to send our work to DevOps and we will notice that in the `dev` branch, Synapse has pushed our pipelines and integrated dataset connections to DevOps. Our work is now backed up.
 
 ![](15.png){ width=80% }
+
+# Copy Data From Kusto Servers to Data Lake
+
+
+Within Microsoft, Kusto servers are often used to store and retrieve data. Yet, extracting bulk data from Kusto servers can be tricky, owing to their limits on file sizes and memory limitations. The code below, set in the `Source` section of our copy data tool, lets us extract any amount of information we desire and copy it to our data lake.
+
+```{python, eval=FALSE}
+set query_fanout_nodes_percent = 50;
+let startTime = ago(3d);
+let endTime = ago(0d);
+cluster("kusto.windows.net").database("db1").nodecpuinfo
+| where TIMESTAMP between (startTime .. endTime)
+| project TIMESTAMP, Var1, Var2, Var3
+| take 1750000;
+```
+
+
+
+
+
+
+
+
