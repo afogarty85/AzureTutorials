@@ -22,3 +22,7 @@ This repository links to my website but acts as a catch for people searching Git
 * Scale a hyperparameter search using multiple VMs with `HyperDrive`
 * Deploy a model for inference to the web
 * Show how to send new input data and retrieve predictions
+
+4. [Azure Logic Apps](http://seekinginference.com/applied_azure/logic_apps.html) In this demo, we walk through the necessary procedures to:
+* Watch our Data Lake for the arrival of a new file
+* Send that newly generated file to OneDrive for sharing

@@ -1,0 +1,65 @@
+---
+title: 'Azure: Logic Apps'
+author: "Andrew Fogarty"
+date: "07/20/2021"
+output:
+  html_document:
+    toc: yes
+    df_print: paged
+  rmarkdown::html_vignette:
+    toc: yes
+    number_sections: yes
+editor_options:
+  chunk_output_type: console
+---
+
+```{r, message = FALSE, warning = FALSE, eval=FALSE}
+# load python
+library(reticulate)
+use_python('C:/Users/Andrew/Anaconda3/')
+use_condaenv(condaenv='my`_ml', required=TRUE)
+library(knitr)
+```
+
+
+
+# Introduction
+
+Azure Logic Apps is a cloud-based platform for creating and running automated workflows that integrate your apps, data, services, and systems. With this platform, you can quickly develop highly scalable integration solutions for your enterprise and business-to-business (B2B) scenarios.
+
+
+# Deploy Files from Data Lake to OneDrive
+
+In this tutorial, we will use the Logic App Designer to send a file from our data lake to OneDrive for sharing. The file that is chosen will be one that is created, such that the Logic App listens to the data lake and when a new file is created or modified, it sends that file to OneDrive. This setup comports well with our Azure ML service that manipulates raw data and generates a transformed file for consumption. We now have a way to get this file off the data lake and share it securely through OneDrive.
+
+
+# Logic App
+
+This section assumes that you have already established a Logic App service in Azure. To begin, select `Logic app designer` from the left menu.  
+
+Our overall architecture looks like the following:
+
+![](ov_arch.png){ width=80% }
+
+Our Logic App begins with a *trigger* that watches our blob storage for changes and then proceeds to follow each action after a detection. String variables are used to hold the list of file paths and the file names -- so we can grab the file location for the latest file and grab it and so we can name our file that we send to OneDrive appropriately.
+
+![](1.png){ width=80% }
+
+Next, we need to create a SAS URI which is connected to our newly generated file's path. We set a low timer on the SAS URI by specifying:
+
+* Expiry Time: Dynamic Content -> Expression: `addHours(utcNow(), 1)`
+
+* Start Time: Dynamic Content -> Expression: `utcNow`
+
+We then send that SAS link to a string and then use the link to tell OneDrive where to upload the file from and to.
+
+![](2.png){ width=80% }
+
+Next we generate a share link for our OneDrive file so that it is accessible to our customers and then we save that link to a file on our blob storage that we can access in a more static fashion.
+
+![](3.png){ width=80% }
+
+
+# Conclusion
+
+This concludes our short introduction to Logic Apps and its ability to dynamically do actions to our files either on a trigger or on a timer.
